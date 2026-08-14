@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { AppData, Task, ScheduleBlock, CheckIn } from './types'
+import { normalizeSchedule } from './types'
 
 const STORAGE_KEY = 'samorealizatsiya-data'
 
@@ -11,7 +12,10 @@ const defaultData: AppData = {
 function loadData(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...defaultData, ...JSON.parse(raw) }
+    if (raw) {
+      const parsed = { ...defaultData, ...JSON.parse(raw) } as AppData
+      return { ...parsed, schedule: normalizeSchedule(parsed.schedule || []) }
+    }
   } catch { /* ignore */ }
   return { ...defaultData }
 }

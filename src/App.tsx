@@ -50,8 +50,8 @@ export default function App() {
           className={`tabs__btn ${tab === 'schedule' ? 'tabs__btn--active' : ''}`}
           onClick={() => setTab('schedule')}
         >
-          <span className="tabs__icon">◷</span>
-          Расписание
+          <span className="tabs__icon">📅</span>
+          Календарь
         </button>
       </nav>
 
@@ -70,6 +70,7 @@ export default function App() {
           <ScheduleTab
             blocks={app.data.schedule}
             onAdd={app.addScheduleBlock}
+            onUpdate={app.updateScheduleBlock}
             onDelete={app.deleteScheduleBlock}
           />
         )}
