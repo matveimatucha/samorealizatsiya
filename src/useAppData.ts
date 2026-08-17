@@ -17,7 +17,8 @@ import {
   subscribeToCloud,
   fetchCloudData,
   saveCloudData,
-  hasLocalData,
+  mergeAppData,
+  isDataEmpty,
   type SyncStatus,
 } from './sync'
 
@@ -32,6 +33,8 @@ export function useAppData() {
   const skipNextSave = useRef(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const initialSyncDone = useRef(false)
+  const dataRef = useRef(data)
+  dataRef.current = data
 
   // Auth state
   useEffect(() => {
@@ -60,20 +63,18 @@ export function useAppData() {
     async function init() {
       try {
         const cloud = await fetchCloudData(user!.uid)
+        const local = loadLocalData()
+        const next = cloud ? mergeAppData(local, cloud) : local
 
-        if (cloud) {
-          skipNextSave.current = true
-          setData(cloud)
-          saveLocalData(cloud)
-          setSyncStatus('synced')
-        } else if (hasLocalData()) {
-          await saveCloudData(user!.uid, loadLocalData())
-          setSyncStatus('synced')
-        } else {
-          await saveCloudData(user!.uid, loadLocalData())
-          setSyncStatus('synced')
+        skipNextSave.current = true
+        setData(next)
+        saveLocalData(next)
+
+        if (!cloud || isDataEmpty(cloud) || JSON.stringify(next) !== JSON.stringify(cloud)) {
+          await saveCloudData(user!.uid, next)
         }
 
+        setSyncStatus('synced')
         initialSyncDone.current = true
 
         unsubSnapshot = subscribeToCloud(
@@ -112,7 +113,7 @@ export function useAppData() {
 
     saveTimer.current = setTimeout(async () => {
       try {
-        await saveCloudData(user.uid, data)
+        await saveCloudData(user.uid, dataRef.current)
         setSyncStatus('synced')
       } catch {
         setSyncStatus('error')
@@ -131,19 +132,25 @@ export function useAppData() {
 
   const signOut = useCallback(async () => {
     if (!auth) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    if (user) {
+      try {
+        await saveCloudData(user.uid, dataRef.current)
+      } catch { /* keep local copy even if cloud fails */ }
+    }
     await firebaseSignOut(auth)
-  }, [])
+  }, [user])
 
   const addTask = useCallback((title: string, deadline?: string, description?: string) => {
     const task: Task = {
       id: crypto.randomUUID(),
       title,
-      description,
       createdAt: new Date().toISOString(),
-      deadline,
       completed: false,
       checkIns: [],
     }
+    if (description) task.description = description
+    if (deadline) task.deadline = deadline
     setData(d => ({ ...d, tasks: [task, ...d.tasks] }))
   }, [])
 

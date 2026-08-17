@@ -1,6 +1,6 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import { initializeFirestore, type Firestore } from 'firebase/firestore'
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -22,7 +22,7 @@ let db: Firestore | null = null
 if (isFirebaseConfigured) {
   app = initializeApp(config)
   auth = getAuth(app)
-  db = getFirestore(app)
+  db = initializeFirestore(app, { ignoreUndefinedProperties: true })
 }
 
 export { auth, db }

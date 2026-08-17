@@ -64,12 +64,45 @@ export async function fetchCloudData(uid: string): Promise<AppData | null> {
 
 export async function saveCloudData(uid: string, data: AppData): Promise<void> {
   if (!db) return
-  await setDoc(doc(db, 'users', uid), data, { merge: false })
+  await setDoc(doc(db, 'users', uid), toFirestorePayload(data), { merge: false })
+}
+
+export function isDataEmpty(data: AppData): boolean {
+  return data.tasks.length === 0 && data.schedule.length === 0
 }
 
 export function hasLocalData(): boolean {
-  const data = loadLocalData()
-  return data.tasks.length > 0 || data.schedule.length > 0
+  return !isDataEmpty(loadLocalData())
+}
+
+/** Strip undefined fields — Firestore rejects them and the whole write fails. */
+export function toFirestorePayload(data: AppData): AppData {
+  return JSON.parse(JSON.stringify(data)) as AppData
+}
+
+function mergeById<T extends { id: string }>(cloud: T[], local: T[]): T[] {
+  const map = new Map<string, T>()
+  for (const item of cloud) map.set(item.id, item)
+  for (const item of local) {
+    const existing = map.get(item.id)
+    if (!existing) {
+      map.set(item.id, item)
+      continue
+    }
+    map.set(item.id, { ...existing, ...item })
+  }
+  return [...map.values()]
+}
+
+/** Prefer keeping everything from both sides so a failed cloud write cannot wipe local tasks. */
+export function mergeAppData(local: AppData, cloud: AppData): AppData {
+  if (isDataEmpty(cloud) && !isDataEmpty(local)) return local
+  if (isDataEmpty(local)) return cloud
+  return {
+    tasks: mergeById(cloud.tasks, local.tasks),
+    schedule: mergeById(cloud.schedule, local.schedule),
+    lastCheckInPromptDate: local.lastCheckInPromptDate || cloud.lastCheckInPromptDate,
+  }
 }
 
 export { isFirebaseConfigured }
