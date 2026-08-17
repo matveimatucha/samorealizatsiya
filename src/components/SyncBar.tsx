@@ -4,6 +4,7 @@ import type { SyncStatus } from '../sync'
 interface Props {
   user: User | null
   syncStatus: SyncStatus
+  syncError: string | null
   cloudEnabled: boolean
   authReady: boolean
   onSignIn: () => void
@@ -19,7 +20,7 @@ const STATUS_LABELS: Record<SyncStatus, string> = {
   error: 'Ошибка синхронизации',
 }
 
-export function SyncBar({ user, syncStatus, cloudEnabled, authReady, onSignIn, onSignOut }: Props) {
+export function SyncBar({ user, syncStatus, syncError, cloudEnabled, authReady, onSignIn, onSignOut }: Props) {
   if (!cloudEnabled) {
     return (
       <div className="sync-bar sync-bar--hint">
@@ -57,15 +58,18 @@ export function SyncBar({ user, syncStatus, cloudEnabled, authReady, onSignIn, o
     : 'muted'
 
   return (
-    <div className="sync-bar">
-      <span className={`sync-bar__dot sync-bar__dot--${dotClass}`} />
-      <span className="sync-bar__text">
-        {STATUS_LABELS[syncStatus]}
-        <span className="sync-bar__email">{user.email}</span>
-      </span>
-      <button type="button" className="btn btn--ghost sync-bar__btn" onClick={onSignOut}>
-        Выйти
-      </button>
-    </div>
+    <>
+      <div className="sync-bar">
+        <span className={`sync-bar__dot sync-bar__dot--${dotClass}`} />
+        <span className="sync-bar__text">
+          {STATUS_LABELS[syncStatus]}
+          <span className="sync-bar__email">{user.email}</span>
+        </span>
+        <button type="button" className="btn btn--ghost sync-bar__btn" onClick={onSignOut}>
+          Выйти
+        </button>
+      </div>
+      {syncError && <p className="sync-bar__error">{syncError}</p>}
+    </>
   )
 }

@@ -22,7 +22,10 @@ let db: Firestore | null = null
 if (isFirebaseConfigured) {
   app = initializeApp(config)
   auth = getAuth(app)
-  db = initializeFirestore(app, { ignoreUndefinedProperties: true })
+  db = initializeFirestore(app, {
+    ignoreUndefinedProperties: true,
+    experimentalForceLongPolling: true,
+  })
 }
 
 export { auth, db }

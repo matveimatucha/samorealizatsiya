@@ -145,6 +145,21 @@ body {
   white-space: nowrap;
 }
 
+.sync-bar__error {
+  margin-top: 0.65rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-sm);
+  color: #fecaca;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  text-align: left;
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 @media (max-width: 480px) {
   .sync-bar {
     border-radius: var(--radius);

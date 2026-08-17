@@ -37,6 +37,7 @@ export default function App() {
         <SyncBar
           user={app.user}
           syncStatus={app.syncStatus}
+          syncError={app.syncError}
           cloudEnabled={app.cloudEnabled}
           authReady={app.authReady}
           onSignIn={app.signIn}

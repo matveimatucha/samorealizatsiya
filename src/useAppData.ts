@@ -19,6 +19,7 @@ import {
   saveCloudData,
   mergeAppData,
   isDataEmpty,
+  humanizeFirebaseError,
   type SyncStatus,
 } from './sync'
 
@@ -28,6 +29,7 @@ export function useAppData() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isFirebaseConfigured ? 'offline' : 'local-only',
   )
+  const [syncError, setSyncError] = useState<string | null>(null)
   const [authReady, setAuthReady] = useState(!isFirebaseConfigured)
 
   const skipNextSave = useRef(false)
@@ -36,7 +38,13 @@ export function useAppData() {
   const dataRef = useRef(data)
   dataRef.current = data
 
-  // Auth state
+  const applyData = useCallback((next: AppData, fromCloud = false) => {
+    if (fromCloud && isDataEmpty(next) && !isDataEmpty(dataRef.current)) return
+    if (fromCloud) skipNextSave.current = true
+    setData(next)
+    saveLocalData(next)
+  }, [])
+
   useEffect(() => {
     if (!auth) return
 
@@ -46,23 +54,27 @@ export function useAppData() {
       initialSyncDone.current = false
       if (!u) {
         setSyncStatus('offline')
+        setSyncError(null)
         setData(loadLocalData())
       }
     })
     return unsub
   }, [])
 
-  // Cloud subscription + initial merge
   useEffect(() => {
     if (!user) return
 
     setSyncStatus('loading')
+    setSyncError(null)
 
+    let cancelled = false
     let unsubSnapshot: (() => void) | null = null
 
     async function init() {
       try {
         const cloud = await fetchCloudData(user!.uid)
+        if (cancelled) return
+
         const local = loadLocalData()
         const next = cloud ? mergeAppData(local, cloud) : local
 
@@ -70,34 +82,52 @@ export function useAppData() {
         setData(next)
         saveLocalData(next)
 
-        if (!cloud || isDataEmpty(cloud) || JSON.stringify(next) !== JSON.stringify(cloud)) {
+        try {
           await saveCloudData(user!.uid, next)
+        } catch (err) {
+          if (cancelled) return
+          setSyncStatus('error')
+          setSyncError(humanizeFirebaseError(err))
+          initialSyncDone.current = true
+          return
         }
 
+        if (cancelled) return
         setSyncStatus('synced')
+        setSyncError(null)
         initialSyncDone.current = true
 
         unsubSnapshot = subscribeToCloud(
           user!.uid,
           remote => {
-            if (!initialSyncDone.current) return
-            skipNextSave.current = true
-            setData(remote)
-            saveLocalData(remote)
+            if (cancelled) return
+            if (isDataEmpty(remote) && !isDataEmpty(dataRef.current)) {
+              void saveCloudData(user!.uid, dataRef.current).catch(() => {})
+              return
+            }
+            applyData(remote, true)
             setSyncStatus('synced')
           },
-          () => setSyncStatus('error'),
+          message => {
+            setSyncStatus('error')
+            setSyncError(message)
+          },
         )
-      } catch {
+      } catch (err) {
+        if (cancelled) return
         setSyncStatus('error')
+        setSyncError(humanizeFirebaseError(err))
+        initialSyncDone.current = true
       }
     }
 
     init()
-    return () => unsubSnapshot?.()
-  }, [user])
+    return () => {
+      cancelled = true
+      unsubSnapshot?.()
+    }
+  }, [user, applyData])
 
-  // Persist changes locally + to cloud
   useEffect(() => {
     saveLocalData(data)
 
@@ -115,10 +145,12 @@ export function useAppData() {
       try {
         await saveCloudData(user.uid, dataRef.current)
         setSyncStatus('synced')
-      } catch {
+        setSyncError(null)
+      } catch (err) {
         setSyncStatus('error')
+        setSyncError(humanizeFirebaseError(err))
       }
-    }, 600)
+    }, 400)
 
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -127,13 +159,18 @@ export function useAppData() {
 
   const signIn = useCallback(async () => {
     if (!auth) return
-    await signInWithPopup(auth, googleProvider)
+    try {
+      await signInWithPopup(auth, googleProvider)
+    } catch (err) {
+      setSyncStatus('error')
+      setSyncError(humanizeFirebaseError(err))
+    }
   }, [])
 
   const signOut = useCallback(async () => {
     if (!auth) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    if (user) {
+    if (user && !isDataEmpty(dataRef.current)) {
       try {
         await saveCloudData(user.uid, dataRef.current)
       } catch { /* keep local copy even if cloud fails */ }
@@ -204,6 +241,7 @@ export function useAppData() {
     data,
     user,
     syncStatus,
+    syncError,
     authReady,
     cloudEnabled: isFirebaseConfigured,
     signIn,
