@@ -1,47 +1,59 @@
 # Самореализация
 
-Личный сайт: to-do лист с ежедневной самооценкой и недельное расписание.
+Личный сайт: to-do лист с ежедневной самооценкой и календарём.
 
 ## Запуск
 
 ```bash
 npm install
+cp .env.example .env   # заполни Firebase-ключи для синхронизации
 npm run dev
 ```
-
-Открой в браузере адрес, который покажет Vite (обычно http://localhost:5173).
 
 ## Возможности
 
 ### Задачи
 - Добавление задач с дедлайном
-- Автоматическая дата создания
-- Ежедневный опрос: «Насколько ты ощущаешь прогресс?» (0–100%)
-- История оценок по каждой задаче
-- Фильтры: активные / готово / все
+- Ежедневный опрос прогресса (0–100%)
+- История оценок, фильтры
 
-### Расписание
-- Блоки по дням недели (Пн–Вс)
-- Время начала и конца, цветовая метка
-- На компьютере — сетка на 7 дней
-- На телефоне — список по дням
+### Календарь
+- Виды: день / неделя / месяц
+- События с временем, повторение каждую неделю
+- Клик по слоту — создать событие
 
-## Данные
+### Синхронизация
+- Вход через Google — одни и те же данные на телефоне и компьютере
+- Автосохранение в облако (Firebase)
+- Без входа данные остаются локально в браузере
 
-Всё хранится локально в браузере (localStorage). Никакого сервера не нужно.
+## Настройка Firebase (один раз)
 
-## Сборка
+1. Создай проект на [console.firebase.google.com](https://console.firebase.google.com)
+2. **Build → Firestore Database → Create database** (режим production, регион ближе к тебе)
+3. **Build → Authentication → Sign-in method → Google → Enable**
+4. **Project Settings → Your apps → Web** — зарегистрируй приложение, скопируй config
+5. Заполни `.env` по образцу `.env.example`
+6. **Firestore → Rules** — вставь правила (только свой аккаунт):
 
-```bash
-npm run build
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
 ```
 
-Готовые файлы появятся в папке `dist/` — их можно выложить на любой хостинг или открывать локально.
+7. **Authentication → Settings → Authorized domains** — добавь `matveimatucha.github.io`
 
-## GitHub Pages
+### GitHub Pages (секреты)
 
-После push в репозиторий `samorealizatsiya` сайт автоматически публикуется на GitHub Pages.
+В репозитории: **Settings → Secrets and variables → Actions** — добавь:
+`VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`
 
-1. В настройках репозитория: **Settings → Pages → Build and deployment → Source: GitHub Actions**
-2. После первого push в `main` открой Actions и дождись деплоя
-3. Сайт будет доступен по адресу: `https://<твой-username>.github.io/samorealizatsiya/`
+## Сайт
+
+https://matveimatucha.github.io/samorealizatsiya/

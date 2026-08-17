@@ -3,6 +3,7 @@ import { useAppData } from './useAppData'
 import { TodoTab } from './components/TodoTab'
 import { ScheduleTab } from './components/ScheduleTab'
 import { DailyCheckIn } from './components/DailyCheckIn'
+import { SyncBar } from './components/SyncBar'
 import { todayStr, needsCheckInToday } from './types'
 
 type Tab = 'tasks' | 'schedule'
@@ -33,6 +34,14 @@ export default function App() {
       <header className="header">
         <h1 className="header__title">Самореализация</h1>
         <p className="header__subtitle">Твои задачи и ритм жизни</p>
+        <SyncBar
+          user={app.user}
+          syncStatus={app.syncStatus}
+          cloudEnabled={app.cloudEnabled}
+          authReady={app.authReady}
+          onSignIn={app.signIn}
+          onSignOut={app.signOut}
+        />
       </header>
 
       <nav className="tabs">
